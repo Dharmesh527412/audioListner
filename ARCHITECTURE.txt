@@ -1,0 +1,163 @@
+
+╔════════════════════════════════════════════════════════════════════════╗
+║                   AUDIO STREAMING ARCHITECTURE                         ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+
+                    🌐 YOUR LOCAL NETWORK 🌐
+    ┌────────────────────────────────────────────────────────────┐
+    │                                                              │
+    │                                                              │
+    │   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                          │
+    │   ┃   LAPTOP 1 (Source)        ┃                          │
+    │   ┃   IP: 172.16.19.57        ┃                          │
+    │   ┃                            ┃                          │
+    │   ┃   ┌─────────────────┐     ┃                          │
+    │   ┃   │ 🌐 Brave Browser│     ┃                          │
+    │   ┃   │   (Playing      │     ┃                          │
+    │   ┃   │    Music)       │     ┃                          │
+    │   ┃   └────────┬────────┘     ┃                          │
+    │   ┃            │ Audio        ┃                          │
+    │   ┃            ▼              ┃                          │
+    │   ┃   ┌─────────────────┐     ┃                          │
+    │   ┃   │  PulseAudio     │     ┃                          │
+    │   ┃   │  Monitor Device │     ┃                          │
+    │   ┃   └────────┬────────┘     ┃                          │
+    │   ┃            │ Captures     ┃                          │
+    │   ┃            ▼              ┃                          │
+    │   ┃   ┌─────────────────┐     ┃         Network          │
+    │   ┃   │ audio_server.py │─────┃─────────────────────┐   │
+    │   ┃   │  Port: 9999     │     ┃     TCP Stream      │   │
+    │   ┃   └─────────────────┘     ┃     44.1kHz Stereo  │   │
+    │   ┃                            ┃                     │   │
+    │   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                     │   │
+    │                                                       │   │
+    │                                                       │   │
+    │                                                       │   │
+    │   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓                     │   │
+    │   ┃  LAPTOP 2 (Destination)    ┃◄────────────────────┘   │
+    │   ┃  IP: 192.168.1.xxx         ┃                         │
+    │   ┃                            ┃                         │
+    │   ┃   ┌─────────────────┐     ┃                         │
+    │   ┃   │ audio_client.py │     ┃                         │
+    │   ┃   │  Receives Audio │     ┃                         │
+    │   ┃   └────────┬────────┘     ┃                         │
+    │   ┃            │ Plays        ┃                         │
+    │   ┃            ▼              ┃                         │
+    │   ┃   ┌─────────────────┐     ┃                         │
+    │   ┃   │   🔊 Speakers    │     ┃                         │
+    │   ┃   │   (Audio Output)│     ┃                         │
+    │   ┃   └─────────────────┘     ┃                         │
+    │   ┃                            ┃                         │
+    │   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛                         │
+    │                                                          │
+    └──────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════
+
+                        DATA FLOW SEQUENCE
+
+═══════════════════════════════════════════════════════════════════
+
+1. 🎵 Music plays in Brave Browser
+        ↓
+2. 🔊 PulseAudio Monitor captures the audio
+        ↓
+3. 📊 audio_server.py reads from monitor device
+        ↓
+4. 📦 Server packages audio into network packets
+        ↓
+5. 🌐 TCP socket transmits over local network
+        ↓
+6. 📡 audio_client.py receives packets
+        ↓
+7. 🎧 Client plays audio through speakers
+        ↓
+8. 🎉 You hear the music on Laptop 2!
+
+
+═══════════════════════════════════════════════════════════════════
+
+                      TECHNICAL SPECIFICATIONS
+
+═══════════════════════════════════════════════════════════════════
+
+Audio Quality:
+  - Sample Rate: 44,100 Hz (CD Quality)
+  - Channels: 2 (Stereo)
+  - Bit Depth: 32-bit float
+  - Block Size: 2,048 frames
+
+Network:
+  - Protocol: TCP/IP
+  - Port: 9999 (default)
+  - Buffer: 50 frames
+  - Latency: ~100-300ms (typical)
+
+Compression: None (raw audio)
+Encryption: None (local network only)
+
+
+═══════════════════════════════════════════════════════════════════
+
+                          FILE STRUCTURE
+
+═══════════════════════════════════════════════════════════════════
+
+audioListner/
+├── 📄 audio_server.py       ← Run on Laptop 1 (source)
+├── 📄 audio_client.py       ← Run on Laptop 2 (destination)
+├── 📄 start_server.sh       ← Easy server startup
+├── 📄 start_client.sh       ← Easy client startup
+├── 📄 copy_to_laptop.sh     ← Transfer files helper
+├── 📄 README.md             ← Detailed documentation
+├── 📄 QUICK_START.txt       ← Quick reference guide
+├── 📄 ARCHITECTURE.txt      ← This file
+├── 📄 audioListner.py       ← Original (with recording)
+└── 📄 listen_browser.py     ← Simple local monitor
+
+
+═══════════════════════════════════════════════════════════════════
+
+                        COMMAND SUMMARY
+
+═══════════════════════════════════════════════════════════════════
+
+On LAPTOP 1 (Server):
+  ./start_server.sh
+
+On LAPTOP 2 (Client):
+  ./start_client.sh <SERVER_IP>
+
+Transfer to Laptop 2:
+  ./copy_to_laptop.sh portable
+  or
+  ./copy_to_laptop.sh user@laptop-ip
+
+
+═══════════════════════════════════════════════════════════════════
+
+                    MULTIPLE CLIENTS SUPPORT
+
+═══════════════════════════════════════════════════════════════════
+
+One server can stream to MULTIPLE clients simultaneously!
+
+    ┏━━━━━━━━━━━━━━━┓
+    ┃    SERVER     ┃
+    ┃   Laptop 1    ┃
+    ┗━━━━━━┯━━━━━━━━┛
+           │
+           ├─────────► 🖥️ Client 1 (Laptop 2)
+           │
+           ├─────────► 🖥️ Client 2 (Laptop 3)
+           │
+           └─────────► 🖥️ Client 3 (Desktop)
+
+All clients will receive the same audio stream in real-time!
+
+
+═══════════════════════════════════════════════════════════════════
+
+Created: October 7, 2025

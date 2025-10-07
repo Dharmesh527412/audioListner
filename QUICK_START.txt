@@ -1,0 +1,205 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║              AUDIO STREAMING BETWEEN UBUNTU LAPTOPS                  ║
+║                      Quick Reference Guide                           ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+📋 WHAT YOU HAVE
+════════════════════════════════════════════════════════════════════════
+
+✅ audio_server.py      - Captures & streams audio from Brave browser
+✅ audio_client.py      - Receives & plays streamed audio
+✅ start_server.sh      - Easy server startup script
+✅ start_client.sh      - Easy client startup script
+✅ README.md            - Detailed documentation
+
+════════════════════════════════════════════════════════════════════════
+🚀 QUICK START - EASIEST METHOD
+════════════════════════════════════════════════════════════════════════
+
+LAPTOP 1 (Source - with Brave browser):
+────────────────────────────────────────────────────────────────────────
+cd /home/dharmesh.p/Trial/audioListner
+./start_server.sh
+
+→ Note the IP address shown (e.g., 172.16.19.57)
+
+
+LAPTOP 2 (Destination - where you want to hear music):
+────────────────────────────────────────────────────────────────────────
+# First, copy these files to Laptop 2:
+#   - audio_client.py
+#   - start_client.sh
+
+cd /path/to/copied/files
+./start_client.sh 172.16.19.57    # Use your server IP!
+
+
+THAT'S IT! 🎉
+────────────────────────────────────────────────────────────────────────
+Play music in Brave browser on Laptop 1
+→ It will stream to Laptop 2 in real-time!
+
+
+════════════════════════════════════════════════════════════════════════
+🔧 MANUAL METHOD (if you prefer)
+════════════════════════════════════════════════════════════════════════
+
+LAPTOP 1 (Server):
+────────────────────────────────────────────────────────────────────────
+# 1. Configure audio capture
+pactl set-default-source alsa_output.pci-0000_00_1f.3.analog-stereo.monitor
+
+# 2. Start server
+/home/dharmesh.p/Trial/audioListner/.venv/bin/python audio_server.py
+
+
+LAPTOP 2 (Client):
+────────────────────────────────────────────────────────────────────────
+# 1. Install dependencies (first time only)
+pip3 install sounddevice numpy
+
+# 2. Run client
+python3 audio_client.py <SERVER_IP_ADDRESS>
+
+
+════════════════════════════════════════════════════════════════════════
+📡 HOW TO FIND YOUR SERVER IP
+════════════════════════════════════════════════════════════════════════
+
+On the server laptop, run:
+    hostname -I
+    
+Or look at the server output - it shows the IP automatically!
+
+
+════════════════════════════════════════════════════════════════════════
+🔥 FIREWALL SETUP (if connection fails)
+════════════════════════════════════════════════════════════════════════
+
+On LAPTOP 1 (server), allow incoming connections:
+
+sudo ufw allow 9999/tcp
+
+Or disable firewall temporarily for testing:
+sudo ufw disable
+
+
+════════════════════════════════════════════════════════════════════════
+📊 WHAT YOU'LL SEE
+════════════════════════════════════════════════════════════════════════
+
+SERVER OUTPUT:
+    [16:36:25] 🔊 Level:   12.3 | Clients: 1 | ████████████          |
+    
+    Shows:
+    - Current time
+    - Audio level (volume)
+    - Number of connected clients
+    - Visual volume bar
+
+CLIENT OUTPUT:
+    [16:36:25] 🔊 Level:   12.1 | Buffer: 15 | ████████████          |
+    
+    Shows:
+    - Current time
+    - Audio level (volume)
+    - Buffer size (network buffer)
+    - Visual volume bar
+
+
+════════════════════════════════════════════════════════════════════════
+✨ FEATURES
+════════════════════════════════════════════════════════════════════════
+
+✅ Real-time audio streaming (44.1kHz stereo - CD quality)
+✅ Multiple clients supported (stream to multiple laptops!)
+✅ Low latency buffering
+✅ Auto-reconnect handling
+✅ Visual audio level monitoring
+✅ Network jitter compensation
+
+
+════════════════════════════════════════════════════════════════════════
+🛑 TO STOP
+════════════════════════════════════════════════════════════════════════
+
+On both server and client:
+    Press Ctrl+C
+
+
+════════════════════════════════════════════════════════════════════════
+💡 TROUBLESHOOTING
+════════════════════════════════════════════════════════════════════════
+
+PROBLEM: No audio captured on server
+SOLUTION: 
+    pactl list sources short
+    # Find your monitor device, then:
+    pactl set-default-source <YOUR_MONITOR_SOURCE>
+
+PROBLEM: Can't connect to server
+SOLUTION:
+    1. Check both laptops are on same network
+    2. Check firewall: sudo ufw allow 9999/tcp
+    3. Verify server is running: netstat -tulpn | grep 9999
+
+PROBLEM: Audio is choppy
+SOLUTION:
+    1. Check network connection quality
+    2. Close other network-intensive applications
+    3. Move closer to WiFi router
+
+PROBLEM: No sound on client
+SOLUTION:
+    1. Check volume on destination laptop
+    2. Check audio output device is working: speaker-test
+
+
+════════════════════════════════════════════════════════════════════════
+🎯 EXAMPLE SCENARIO
+════════════════════════════════════════════════════════════════════════
+
+1. You're in living room with Laptop 1
+2. Friend is in bedroom with Laptop 2
+3. Start server on Laptop 1
+4. Server shows IP: 172.16.19.57
+5. Friend runs on Laptop 2: ./start_client.sh 172.16.19.57
+6. Play Spotify/YouTube in Brave browser on Laptop 1
+7. Friend hears the music on Laptop 2! 🎉
+
+
+════════════════════════════════════════════════════════════════════════
+📁 FILE TRANSFER TO LAPTOP 2
+════════════════════════════════════════════════════════════════════════
+
+Option 1 - SCP (if you know Laptop 2's IP):
+    scp audio_client.py start_client.sh user@laptop2-ip:~/
+
+Option 2 - USB Drive:
+    Copy files to USB, then plug into Laptop 2
+
+Option 3 - Network Share:
+    Share the folder over the network
+
+Only these files needed on Laptop 2:
+    - audio_client.py
+    - start_client.sh (optional, for convenience)
+
+
+════════════════════════════════════════════════════════════════════════
+⚡ PRO TIPS
+════════════════════════════════════════════════════════════════════════
+
+1. For better quality, ensure both laptops are on 5GHz WiFi
+2. Server can handle multiple clients - stream to many laptops!
+3. Works with any audio (YouTube, Spotify, local files, etc.)
+4. Press Ctrl+C to stop cleanly without issues
+5. Low latency - about 100-200ms delay typically
+
+
+════════════════════════════════════════════════════════════════════════
+
+Created: October 7, 2025
+Your Server IP: 172.16.19.57 (check with: hostname -I)
+
+Happy Streaming! 🎵🚀
