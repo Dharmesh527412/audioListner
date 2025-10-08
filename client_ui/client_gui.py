@@ -391,6 +391,10 @@ class AudioStreamClientGUI:
     
     def playback_callback(self, outdata, frames, time_info, status):
         """Audio playback callback"""
+        if not self.running:
+            # Stop processing if disconnected
+            raise sd.CallbackStop()
+        
         if status:
             self.log(f"Playback status: {status}", 'warning')
         
@@ -435,6 +439,10 @@ class AudioStreamClientGUI:
     
     def receive_audio(self):
         """Receive audio data from server"""
+        # Set socket timeout to allow checking running flag
+        if self.socket:
+            self.socket.settimeout(1.0)
+        
         while self.running:
             try:
                 # Receive size
@@ -448,11 +456,19 @@ class AudioStreamClientGUI:
                 
                 # Receive audio data
                 audio_data = b''
-                while len(audio_data) < size:
-                    chunk = self.socket.recv(size - len(audio_data))
-                    if not chunk:
-                        break
-                    audio_data += chunk
+                while len(audio_data) < size and self.running:
+                    try:
+                        chunk = self.socket.recv(min(4096, size - len(audio_data)))
+                        if not chunk:
+                            break
+                        audio_data += chunk
+                    except socket.timeout:
+                        if not self.running:
+                            break
+                        continue
+                
+                if not self.running or len(audio_data) < size:
+                    break
                 
                 # Convert to numpy array
                 audio_array = np.frombuffer(audio_data, dtype='float32').reshape(-1, self.channels)
@@ -472,6 +488,14 @@ class AudioStreamClientGUI:
                 self.bytes_received += size
                 self.frames_received += 1
                 
+            except socket.timeout:
+                # Check if still running
+                if not self.running:
+                    break
+                continue
+            except OSError:
+                # Socket closed
+                break
             except Exception as e:
                 if self.running:
                     self.log(f"Receive error: {e}", 'error')
@@ -485,16 +509,28 @@ class AudioStreamClientGUI:
         self.log("Disconnecting from server...", 'info')
         self.running = False
         
-        # Stop playback
+        # Stop playback first
         if self.stream:
-            self.stream.stop()
-            self.stream.close()
-            self.stream = None
+            try:
+                self.stream.stop()
+                self.stream.close()
+            except:
+                pass
+            finally:
+                self.stream = None
         
         # Close socket
         if self.socket:
-            self.socket.close()
-            self.socket = None
+            try:
+                self.socket.shutdown(socket.SHUT_RDWR)
+            except:
+                pass
+            try:
+                self.socket.close()
+            except:
+                pass
+            finally:
+                self.socket = None
         
         # Clear queue
         while not self.audio_queue.empty():
@@ -502,6 +538,10 @@ class AudioStreamClientGUI:
                 self.audio_queue.get_nowait()
             except:
                 break
+        
+        # Give threads time to finish
+        import time
+        time.sleep(0.3)
         
         self.on_disconnected()
     
@@ -528,11 +568,20 @@ def main():
     # Handle window close
     def on_closing():
         if app.running:
+            app.log("Closing application...", 'info')
             app.disconnect_from_server()
-        root.destroy()
+            # Give time for cleanup
+            root.after(100, root.destroy)
+        else:
+            root.destroy()
     
     root.protocol("WM_DELETE_WINDOW", on_closing)
-    root.mainloop()
+    
+    try:
+        root.mainloop()
+    except KeyboardInterrupt:
+        if app.running:
+            app.disconnect_from_server()
 
 
 if __name__ == "__main__":

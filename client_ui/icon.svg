@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#16a085"/>
+  <circle cx="64" cy="64" r="58" fill="#1abc9c"/>
+  
+  <!-- Headphones -->
+  <path d="M 35 64 Q 35 35 64 35 Q 93 35 93 64" stroke="#2c3e50" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M 35 64 Q 35 35 64 35 Q 93 35 93 64" stroke="#34495e" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- Left ear cup -->
+  <rect x="28" y="60" width="14" height="25" fill="#2c3e50" rx="7"/>
+  <rect x="30" y="62" width="10" height="21" fill="#34495e" rx="5"/>
+  <ellipse cx="35" cy="72.5" rx="4" ry="8" fill="#e74c3c"/>
+  
+  <!-- Right ear cup -->
+  <rect x="86" y="60" width="14" height="25" fill="#2c3e50" rx="7"/>
+  <rect x="88" y="62" width="10" height="21" fill="#34495e" rx="5"/>
+  <ellipse cx="93" cy="72.5" rx="4" ry="8" fill="#e74c3c"/>
+  
+  <!-- Sound waves -->
+  <path d="M 20 72 Q 15 72 15 72" stroke="#3498db" stroke-width="2" fill="none" opacity="0.7">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1.5s" repeatCount="indefinite"/>
+  </path>
+  <path d="M 108 72 Q 113 72 113 72" stroke="#3498db" stroke-width="2" fill="none" opacity="0.7">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1.5s" repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Incoming arrow -->
+  <path d="M 48 64 L 63 64 L 58 59 M 63 64 L 58 69" stroke="#27ae60" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Status indicator -->
+  <circle cx="64" cy="100" r="5" fill="#27ae60"/>
+  
+  <!-- Title text -->
+  <text x="64" y="118" font-family="Arial" font-size="10" fill="#2c3e50" text-anchor="middle" font-weight="bold">CLIENT</text>
+</svg>

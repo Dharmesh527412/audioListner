@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Audio Streaming Server
+Comment=Stream audio from this laptop to other devices
+Exec=/home/dharmesh.p/Trial/audioListner/.venv/bin/python /home/dharmesh.p/Trial/audioListner/server_ui/server_gui.py
+Path=/home/dharmesh.p/Trial/audioListner/server_ui
+Icon=/home/dharmesh.p/Trial/audioListner/server_ui/icon.svg
+Terminal=false
+Categories=AudioVideo;Audio;Network;
+Keywords=audio;streaming;server;broadcast;
+StartupNotify=true
+StartupWMClass=server_gui

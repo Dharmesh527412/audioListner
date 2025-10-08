@@ -268,9 +268,13 @@ class AudioStreamServerGUI:
                 self.root.after(0, self.update_client_count)
             except socket.timeout:
                 continue
+            except OSError:
+                # Socket was closed, exit gracefully
+                break
             except Exception as e:
                 if self.running:
                     self.log(f"Error accepting client: {e}", 'error')
+                break
     
     def update_client_count(self):
         """Update connected clients count"""
@@ -278,6 +282,10 @@ class AudioStreamServerGUI:
     
     def audio_callback(self, indata, frames, time_info, status):
         """Audio capture callback"""
+        if not self.running:
+            # Stop processing if server is stopped
+            raise sd.CallbackStop()
+        
         if status:
             self.log(f"Audio status: {status}", 'warning')
         
@@ -303,7 +311,12 @@ class AudioStreamServerGUI:
         
         # Remove disconnected clients
         for client in disconnected:
-            self.clients.remove(client)
+            if client in self.clients:
+                self.clients.remove(client)
+                try:
+                    client.close()
+                except:
+                    pass
             self.root.after(0, self.update_client_count)
             self.log("Client disconnected", 'warning')
     
@@ -384,16 +397,26 @@ class AudioStreamServerGUI:
     def stop_server(self):
         """Stop the audio streaming server"""
         try:
+            self.log("Stopping server...", 'info')
             self.running = False
             
-            # Stop audio stream
+            # Stop audio stream first
             if self.stream:
-                self.stream.stop()
-                self.stream.close()
-                self.stream = None
+                try:
+                    self.stream.stop()
+                    self.stream.close()
+                except:
+                    pass
+                finally:
+                    self.stream = None
             
             # Close all client connections
-            for client in self.clients:
+            clients_copy = self.clients.copy()
+            for client in clients_copy:
+                try:
+                    client.shutdown(socket.SHUT_RDWR)
+                except:
+                    pass
                 try:
                     client.close()
                 except:
@@ -402,8 +425,20 @@ class AudioStreamServerGUI:
             
             # Close server socket
             if self.server_socket:
-                self.server_socket.close()
-                self.server_socket = None
+                try:
+                    self.server_socket.shutdown(socket.SHUT_RDWR)
+                except:
+                    pass
+                try:
+                    self.server_socket.close()
+                except:
+                    pass
+                finally:
+                    self.server_socket = None
+            
+            # Give threads time to finish
+            import time
+            time.sleep(0.5)
             
             # Update UI
             self.start_button.config(state=tk.NORMAL)
@@ -429,11 +464,20 @@ def main():
     # Handle window close
     def on_closing():
         if app.running:
+            app.log("Closing application...", 'info')
             app.stop_server()
-        root.destroy()
+            # Give time for cleanup
+            root.after(100, root.destroy)
+        else:
+            root.destroy()
     
     root.protocol("WM_DELETE_WINDOW", on_closing)
-    root.mainloop()
+    
+    try:
+        root.mainloop()
+    except KeyboardInterrupt:
+        if app.running:
+            app.stop_server()
 
 
 if __name__ == "__main__":

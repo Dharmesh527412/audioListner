@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Audio Streaming Client
+Comment=Listen to audio streamed from another laptop
+Exec=/home/dharmesh.p/Trial/audioListner/.venv/bin/python /home/dharmesh.p/Trial/audioListner/client_ui/client_gui.py
+Path=/home/dharmesh.p/Trial/audioListner/client_ui
+Icon=/home/dharmesh.p/Trial/audioListner/client_ui/icon.svg
+Terminal=false
+Categories=AudioVideo;Audio;Network;
+Keywords=audio;streaming;client;listen;receiver;
+StartupNotify=true
+StartupWMClass=client_gui
