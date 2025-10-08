@@ -2,6 +2,8 @@
 
 Stream audio from your Brave browser to another Ubuntu laptop on your network.
 
+**🎤 IMPORTANT: This application captures ONLY system audio OUTPUT (browser audio). It does NOT capture or stream microphone input.**
+
 ## 📋 Requirements
 
 Both laptops need:
@@ -12,10 +14,11 @@ Both laptops need:
 
 ### On the SOURCE laptop (with Brave browser playing music):
 
-1. **Setup audio capture** (one time):
+1. **Setup audio OUTPUT monitoring** (one time):
    ```bash
    pactl set-default-source alsa_output.pci-0000_00_1f.3.analog-stereo.monitor
    ```
+   *This captures only system audio OUTPUT (what your speakers play), NOT microphone input*
 
 2. **Start the server**:
    ```bash
@@ -95,15 +98,52 @@ python audio_client.py <SERVER_IP> --port 8888
    python -c "import sounddevice; print(sounddevice.query_devices())"
    ```
 
-### No audio captured on server?
+### Server says "No suitable audio device found"?
 
-1. **List PulseAudio sources**:
+This usually means the audio device detection needs to be configured:
+
+1. **First, check if PulseAudio monitor exists**:
    ```bash
    pactl list sources short
+   # Look for a line with ".monitor" in the name
    ```
 
-2. **Set correct monitor device**:
+2. **Set the monitor as default source**:
    ```bash
+   pactl set-default-source alsa_output.pci-0000_00_1f.3.analog-stereo.monitor
+   # Replace with your actual monitor device name from step 1
+   ```
+
+3. **Verify it's set correctly**:
+   ```bash
+   pactl get-default-source
+   # Should show the monitor device
+   ```
+
+4. **Test device detection**:
+   ```bash
+   python3 test_device_detection.py
+   # Should show: ✅ SUCCESS: Found audio device!
+   ```
+
+**Note**: The application will use the `pulse` device which automatically uses PulseAudio's default source (the monitor you set above).
+
+### No audio captured on server?
+
+1. **Check PulseAudio is running**:
+   ```bash
+   pulseaudio --check && echo "PulseAudio is running" || echo "PulseAudio is not running"
+   ```
+
+2. **Verify default source is a monitor**:
+   ```bash
+   pactl get-default-source
+   # Should show a device with ".monitor" in the name
+   ```
+
+3. **If needed, set correct monitor device**:
+   ```bash
+   pactl list sources short
    pactl set-default-source <YOUR_MONITOR_SOURCE>
    ```
 
@@ -131,9 +171,25 @@ To restrict to local network only:
 python audio_server.py --host 192.168.1.100  # Use your local IP
 ```
 
-## 🛑 Stopping
+## 🛑 Stopping the Application
 
-Press `Ctrl+C` on either server or client to stop streaming.
+The application automatically stops streaming when closed:
+
+### Command-Line Version
+- **Ctrl+C**: Cleanly stops streaming and releases all resources
+- **Close Terminal**: Automatically stops streaming (no orphaned processes)
+- **Kill Process**: Handles SIGTERM/SIGINT signals gracefully
+
+### GUI Version
+- **Click 'Stop' button**: Stops streaming and disconnects clients
+- **Close Window (X)**: Automatically stops streaming first, then closes
+- **Ctrl+C in Terminal**: Cleanly shuts down if launched from terminal
+
+**✅ Guaranteed Cleanup**: All methods ensure:
+- Audio streams are stopped
+- Network connections are closed
+- Ports are released for reuse
+- No orphaned processes remain
 
 ## 💡 Tips
 

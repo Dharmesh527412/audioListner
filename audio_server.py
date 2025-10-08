@@ -11,6 +11,8 @@ import socket
 import struct
 import threading
 import sys
+import signal
+import atexit
 from datetime import datetime
 
 
@@ -31,20 +33,75 @@ class AudioStreamServer:
         self.clients = []
         self.running = False
         self.server_socket = None
+        self.stream = None
         
+        # Register cleanup handlers
+        atexit.register(self.cleanup)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGINT, self.signal_handler)
+        
+    def signal_handler(self, signum, frame):
+        """Handle termination signals"""
+        print("\n\n" + "-" * 70)
+        print("✓ Received shutdown signal, stopping server...")
+        self.running = False
+        sys.exit(0)
+    
+    def cleanup(self):
+        """Cleanup function called on exit"""
+        if self.running:
+            self.running = False
+            
+            # Stop audio stream
+            if self.stream:
+                try:
+                    self.stream.stop()
+                    self.stream.close()
+                except:
+                    pass
+            
+            # Close all client connections
+            for client in self.clients[:]:
+                try:
+                    client.close()
+                except:
+                    pass
+            self.clients.clear()
+            
+            # Close server socket
+            if self.server_socket:
+                try:
+                    self.server_socket.close()
+                except:
+                    pass
+    
     def get_monitor_device(self):
-        """Find the best audio input device for capturing system audio"""
+        """Find the best audio input device for capturing system audio (OUTPUT monitor only, NOT microphone)"""
         devices = sd.query_devices()
         
-        # Look for explicit monitor devices
+        # Look for explicit monitor devices (these capture system OUTPUT, not microphone input)
+        # Exclude any microphone or input devices
         for i, device in enumerate(devices):
             name = device['name'].lower()
+            # Only accept monitor devices, explicitly exclude microphone/input devices
             if 'monitor' in name and device['max_input_channels'] > 0:
+                # Exclude microphone-related devices
+                if any(keyword in name for keyword in ['mic', 'microphone', 'input', 'capture']):
+                    continue
                 return i, device['name']
         
-        # Fall back to PulseAudio
+        # Fall back to PulseAudio via 'pulse' or 'default' device
+        # When PulseAudio default source is set to a monitor, these will capture it
         for i, device in enumerate(devices):
-            if device['name'] in ['pulse', 'default'] and device['max_input_channels'] > 0:
+            name = device['name'].lower()
+            # Use 'pulse' device which will use PulseAudio's default source (the monitor)
+            if name == 'pulse' and device['max_input_channels'] > 0:
+                return i, device['name']
+        
+        # Try 'default' as another fallback (which also uses PulseAudio)
+        for i, device in enumerate(devices):
+            name = device['name'].lower()
+            if name == 'default' and device['max_input_channels'] > 0:
                 return i, device['name']
         
         return None, None
@@ -129,14 +186,17 @@ class AudioStreamServer:
         print("=" * 70)
         print("🎵  AUDIO STREAMING SERVER")
         print("=" * 70)
-        print("\nCaptures audio from Brave browser and streams it over the network\n")
+        print("\nCaptures audio OUTPUT from Brave browser and streams it over the network")
+        print("🎤 MICROPHONE INPUT IS NOT CAPTURED - Only system audio output\n")
         
         # Get the monitor device
         device_idx, device_name = self.get_monitor_device()
         
         if device_idx is None:
-            print("❌ Could not find a suitable audio capture device!")
-            print("\nRun this command first:")
+            print("❌ Could not find a suitable audio OUTPUT monitor device!")
+            print("\nThis application captures ONLY system audio output (browser audio).")
+            print("It does NOT capture microphone input.")
+            print("\nRun this command first to set up OUTPUT monitoring:")
             print("  pactl set-default-source alsa_output.pci-0000_00_1f.3.analog-stereo.monitor")
             sys.exit(1)
         
@@ -153,21 +213,24 @@ class AudioStreamServer:
         accept_thread.start()
         
         print("-" * 70)
-        print("🛑 Press Ctrl+C to stop streaming\n")
+        print("🛑 Press Ctrl+C to stop streaming")
+        print("💡 Streaming will automatically stop when you close the terminal\n")
         
         try:
             # Open audio input stream
-            with sd.InputStream(
+            self.stream = sd.InputStream(
                 device=device_idx,
                 channels=self.channels,
                 samplerate=self.samplerate,
                 callback=self.audio_callback,
                 blocksize=self.blocksize,
                 dtype='float32'
-            ):
-                # Keep running until interrupted
-                while self.running:
-                    sd.sleep(100)
+            )
+            self.stream.start()
+            
+            # Keep running until interrupted
+            while self.running:
+                sd.sleep(100)
         
         except KeyboardInterrupt:
             print("\n\n" + "-" * 70)
@@ -179,16 +242,28 @@ class AudioStreamServer:
         finally:
             self.running = False
             
+            # Stop audio stream
+            if self.stream:
+                try:
+                    self.stream.stop()
+                    self.stream.close()
+                except:
+                    pass
+            
             # Close all client connections
-            for client in self.clients:
+            for client in self.clients[:]:
                 try:
                     client.close()
                 except:
                     pass
+            self.clients.clear()
             
             # Close server socket
             if self.server_socket:
-                self.server_socket.close()
+                try:
+                    self.server_socket.close()
+                except:
+                    pass
             
             print("✓ Server stopped")
             print("=" * 70)

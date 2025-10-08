@@ -58,7 +58,16 @@ class AudioStreamServerGUI:
             bg='#2c3e50',
             fg='white'
         )
-        title_label.pack(pady=20)
+        title_label.pack(pady=(15, 2))
+        
+        subtitle_label = tk.Label(
+            header_frame,
+            text="Streams system audio OUTPUT only - No microphone input",
+            font=('Helvetica', 9),
+            bg='#2c3e50',
+            fg='#95a5a6'
+        )
+        subtitle_label.pack(pady=(0, 10))
         
         # Main container
         main_frame = tk.Frame(self.root, bg='#ecf0f1')
@@ -237,18 +246,32 @@ class AudioStreamServerGUI:
         self.root.after(100, self.update_ui)
     
     def get_monitor_device(self):
-        """Find the best audio input device"""
+        """Find the best audio OUTPUT monitor device (NOT microphone)"""
         devices = sd.query_devices()
         
-        # Look for monitor devices
+        # Look for monitor devices (these capture system OUTPUT, not microphone input)
+        # Exclude any microphone or input devices
         for i, device in enumerate(devices):
             name = device['name'].lower()
+            # Only accept monitor devices, explicitly exclude microphone/input devices
             if 'monitor' in name and device['max_input_channels'] > 0:
+                # Exclude microphone-related devices
+                if any(keyword in name for keyword in ['mic', 'microphone', 'input', 'capture']):
+                    continue
                 return i, device['name']
         
-        # Fall back to PulseAudio
+        # Fall back to PulseAudio via 'pulse' or 'default' device
+        # When PulseAudio default source is set to a monitor, these will capture it
         for i, device in enumerate(devices):
-            if device['name'] in ['pulse', 'default'] and device['max_input_channels'] > 0:
+            name = device['name'].lower()
+            # Use 'pulse' device which will use PulseAudio's default source (the monitor)
+            if name == 'pulse' and device['max_input_channels'] > 0:
+                return i, device['name']
+        
+        # Try 'default' as another fallback (which also uses PulseAudio)
+        for i, device in enumerate(devices):
+            name = device['name'].lower()
+            if name == 'default' and device['max_input_channels'] > 0:
                 return i, device['name']
         
         return None, None
@@ -348,14 +371,16 @@ class AudioStreamServerGUI:
     def start_server(self):
         """Start the audio streaming server"""
         try:
-            # Find audio device
+            # Find audio OUTPUT monitor device (NOT microphone)
             device_idx, device_name = self.get_monitor_device()
             if device_idx is None:
-                self.log("Error: No suitable audio device found!", 'error')
-                self.log("Make sure you have set up audio monitoring.", 'error')
+                self.log("Error: No suitable audio OUTPUT monitor device found!", 'error')
+                self.log("This captures ONLY system audio output, NOT microphone.", 'error')
+                self.log("Run: pactl set-default-source alsa_output.pci-0000_00_1f.3.analog-stereo.monitor", 'error')
                 return
             
-            self.log(f"Using audio device: {device_name}", 'success')
+            self.log(f"Using audio OUTPUT device: {device_name}", 'success')
+            self.log("Streaming system audio OUTPUT only - microphone NOT captured", 'info')
             self.device_label.config(text=f"Audio Device: {device_name}")
             
             # Create server socket

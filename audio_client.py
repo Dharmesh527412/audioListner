@@ -10,6 +10,8 @@ import numpy as np
 import socket
 import struct
 import sys
+import signal
+import atexit
 from datetime import datetime
 import queue
 import threading
@@ -29,11 +31,44 @@ class AudioStreamClient:
         self.socket = None
         self.running = False
         self.audio_queue = queue.Queue(maxsize=50)
+        self.stream = None
         
         # These will be received from server
         self.samplerate = None
         self.channels = None
         self.blocksize = None
+        
+        # Register cleanup handlers
+        atexit.register(self.cleanup)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGINT, self.signal_handler)
+    
+    def signal_handler(self, signum, frame):
+        """Handle termination signals"""
+        print("\n\n" + "-" * 70)
+        print("✓ Received shutdown signal, stopping client...")
+        self.running = False
+        sys.exit(0)
+    
+    def cleanup(self):
+        """Cleanup function called on exit"""
+        if self.running:
+            self.running = False
+            
+            # Stop audio stream
+            if self.stream:
+                try:
+                    self.stream.stop()
+                    self.stream.close()
+                except:
+                    pass
+            
+            # Close socket
+            if self.socket:
+                try:
+                    self.socket.close()
+                except:
+                    pass
     
     def connect_to_server(self):
         """Connect to the audio streaming server"""
@@ -152,20 +187,23 @@ class AudioStreamClient:
         
         print("-" * 70)
         print("🎧 Playing audio from server...")
-        print("🛑 Press Ctrl+C to stop\n")
+        print("🛑 Press Ctrl+C to stop")
+        print("💡 Playback will automatically stop when you close the terminal\n")
         
         try:
             # Open audio output stream
-            with sd.OutputStream(
+            self.stream = sd.OutputStream(
                 channels=self.channels,
                 samplerate=self.samplerate,
                 callback=self.audio_callback,
                 blocksize=self.blocksize,
                 dtype='float32'
-            ):
-                # Keep running until interrupted
-                while self.running:
-                    sd.sleep(100)
+            )
+            self.stream.start()
+            
+            # Keep running until interrupted
+            while self.running:
+                sd.sleep(100)
         
         except KeyboardInterrupt:
             print("\n\n" + "-" * 70)
@@ -176,6 +214,14 @@ class AudioStreamClient:
         
         finally:
             self.running = False
+            
+            # Stop audio stream
+            if self.stream:
+                try:
+                    self.stream.stop()
+                    self.stream.close()
+                except:
+                    pass
             
             # Close socket
             if self.socket:
